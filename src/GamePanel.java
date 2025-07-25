@@ -2,94 +2,282 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Random;
 
 public class GamePanel extends JPanel implements ActionListener, KeyListener {
-    private Timer timer;
-    private Player player;
-    private ArrayList<Obstacle> obstacles;
-    private boolean movingUp = false;
-    private final int PANEL_WIDTH = 800;
-    private final int PANEL_HEIGHT = 600;
+    Timer timer;
+    Player player;
+    ArrayList<Obstacle> obstacles;
+    boolean upPressed = false;
+    ArrayList<Point> trail;
+
+    boolean isDead = false;
+    ArrayList<Particle> deathParticles;
+    int deathAnimFrames = 0;
+    final int MAX_DEATH_FRAMES = 60;
+
+    Random rand = new Random();
+
+    int zigzagSegmentLength = 50;
+    int zigzagNumSegments = 60;
+    int zigzagStartX;
+
+    int zigzagLowY = 200;
+    int zigzagHighY = 350;
+
+    int obstacleSize = 40;
+    int pathGap = 120;
+
+    ArrayList<BackgroundParticle> bgParticles;
+    ArrayList<NeonLine> neonLines;
 
     public GamePanel() {
-        setPreferredSize(new Dimension(PANEL_WIDTH, PANEL_HEIGHT));
-        setBackground(Color.BLACK);
+        setPreferredSize(new Dimension(800, 600));
+        setBackground(new Color(10, 10, 40));
         setFocusable(true);
         addKeyListener(this);
 
-        player = new Player(100, PANEL_HEIGHT / 2);
+        player = new Player(100, 300);
         obstacles = new ArrayList<>();
-        timer = new Timer(20, this);
+        trail = new ArrayList<>();
+        deathParticles = new ArrayList<>();
+
+        zigzagStartX = player.getX() + 800;
+
+        bgParticles = new ArrayList<>();
+        for (int i = 0; i < 150; i++) {
+            bgParticles.add(new BackgroundParticle(rand.nextInt(800), rand.nextInt(600)));
+        }
+
+        neonLines = new ArrayList<>();
+        for (int i = 0; i < 15; i++) {
+            neonLines.add(new NeonLine(rand.nextInt(800), rand.nextInt(600), 2 + rand.nextInt(5)));
+        }
+
+        timer = new Timer(15, this);
         timer.start();
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (movingUp) {
+        if (isDead) {
+            deathAnimFrames++;
+            for (int i = 0; i < deathParticles.size(); i++) {
+                Particle p = deathParticles.get(i);
+                p.update();
+                if (p.life <= 0) {
+                    deathParticles.remove(i);
+                    i--;
+                }
+            }
+            if (deathAnimFrames >= MAX_DEATH_FRAMES) {
+                JOptionPane.showMessageDialog(this, "¡Perdiste!");
+                System.exit(0);
+            }
+            repaint();
+            return;
+        }
+
+        if (upPressed) {
             player.moveUp();
         } else {
             player.moveDown();
         }
-
         player.update();
-        spawnObstacles();
-        updateObstacles();
-        checkCollisions();
+
+        if (player.getX() + 800 > zigzagStartX) {
+            int xPos = zigzagStartX;
+
+            for (int i = 0; i < zigzagNumSegments; i++) {
+                // Alterna entre altura baja y alta
+                int centerY = (i % 2 == 0) ? zigzagLowY : zigzagHighY;
+
+                // Triángulo fila superior
+                int topY = centerY - pathGap / 2 - obstacleSize;
+                obstacles.add(new Obstacle(xPos, topY, obstacleSize));
+
+                // Triángulo fila inferior
+                int bottomY = centerY + pathGap / 2;
+                obstacles.add(new Obstacle(xPos, bottomY, obstacleSize));
+
+                xPos += zigzagSegmentLength;
+            }
+
+            zigzagStartX += zigzagSegmentLength * zigzagNumSegments + 400;
+        }
+
+        obstacles.removeIf(obs -> obs.x < player.getX() - 100);
+
+        Rectangle playerBounds = player.getBounds();
+        for (Obstacle obs : obstacles) {
+            if (obs.collidesWith(playerBounds, player.getX())) {
+                startDeathAnimation();
+                break;
+            }
+        }
+
+        trail.add(new Point(player.getX(), player.getY()));
+        if (trail.size() > 20) trail.remove(0);
+
+        for (BackgroundParticle bp : bgParticles) bp.update();
+        for (NeonLine nl : neonLines) nl.update();
+
         repaint();
     }
 
-    private void spawnObstacles() {
-        if (Math.random() < 0.02) {
-            obstacles.add(new Obstacle(PANEL_WIDTH, (int)(Math.random() * (PANEL_HEIGHT - 100)), 20, 100));
-        }
-    }
+    private void startDeathAnimation() {
+        isDead = true;
+        deathAnimFrames = 0;
+        deathParticles.clear();
 
-    private void updateObstacles() {
-        Iterator<Obstacle> it = obstacles.iterator();
-        while (it.hasNext()) {
-            Obstacle obs = it.next();
-            obs.move();
-            if (obs.getX() + obs.getWidth() < 0) {
-                it.remove();
-            }
-        }
-    }
-
-    private void checkCollisions() {
-        Rectangle playerBounds = player.getBounds();
-        for (Obstacle obs : obstacles) {
-            if (playerBounds.intersects(obs.getBounds())) {
-                timer.stop();
-                JOptionPane.showMessageDialog(this, "¡Game Over!");
-                System.exit(0);
-            }
+        for (int i = 0; i < 50; i++) {
+            int px = player.getX();
+            int py = player.getY();
+            deathParticles.add(new Particle(px, py));
         }
     }
 
     @Override
-    public void paintComponent(Graphics g) {
+    protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        player.draw(g);
+        Graphics2D g2 = (Graphics2D) g;
+
+        for (BackgroundParticle bp : bgParticles) bp.draw(g2);
+        for (NeonLine nl : neonLines) nl.draw(g2);
+
+        for (int i = 0; i < trail.size() - 1; i++) {
+            Point p1 = trail.get(i);
+            Point p2 = trail.get(i + 1);
+            g2.setColor(new Color(0, 200, 255, 150));
+            g2.setStroke(new BasicStroke(4));
+            g2.drawLine(p1.x - player.getX() + 100, p1.y, p2.x - player.getX() + 100, p2.y);
+        }
+
         for (Obstacle obs : obstacles) {
-            obs.draw(g);
+            obs.drawNeon(g2, player.getX());
+        }
+
+        if (!isDead) {
+            player.draw(g2);
+        }
+
+        if (isDead) {
+            for (Particle p : deathParticles) {
+                p.draw(g2, player.getX());
+            }
         }
     }
 
     @Override
     public void keyPressed(KeyEvent e) {
-        if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-            movingUp = true;
+        if (e.getKeyCode() == KeyEvent.VK_SPACE || e.getKeyCode() == KeyEvent.VK_UP) {
+            upPressed = true;
         }
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
-        if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-            movingUp = false;
+        if (e.getKeyCode() == KeyEvent.VK_SPACE || e.getKeyCode() == KeyEvent.VK_UP) {
+            upPressed = false;
         }
     }
 
     @Override
     public void keyTyped(KeyEvent e) {}
+
+    class Particle {
+        double x, y;
+        double vx, vy;
+        int size;
+        int life;
+        Color color;
+
+        public Particle(int startX, int startY) {
+            x = startX;
+            y = startY;
+            vx = (rand.nextDouble() - 0.5) * 6;
+            vy = (rand.nextDouble() - 0.5) * 6;
+            size = 5 + rand.nextInt(5);
+            life = 30 + rand.nextInt(30);
+            color = new Color(255, 50 + rand.nextInt(205), 50 + rand.nextInt(205));
+        }
+
+        public void update() {
+            x += vx;
+            y += vy;
+            vy += 0.2;
+            life--;
+        }
+
+        public void draw(Graphics2D g2, int playerX) {
+            g2.setColor(color);
+            int drawX = (int) x - playerX + 100;
+            int drawY = (int) y;
+            g2.fillOval(drawX, drawY, size, size);
+        }
+    }
+
+    class BackgroundParticle {
+        float x, y;
+        float vx, vy;
+        float size;
+        float brightness;
+
+        public BackgroundParticle(float startX, float startY) {
+            x = startX;
+            y = startY;
+            vx = (rand.nextFloat() - 0.5f) * 0.5f;
+            vy = (rand.nextFloat() - 0.5f) * 0.5f;
+            size = 1 + rand.nextFloat() * 2;
+            brightness = 0.5f + rand.nextFloat() * 0.5f;
+        }
+
+        public void update() {
+            x += vx;
+            y += vy;
+
+            if (x < 0) x = getWidth();
+            if (x > getWidth()) x = 0;
+            if (y < 0) y = getHeight();
+            if (y > getHeight()) y = 0;
+
+            brightness += (rand.nextFloat() - 0.5f) * 0.05f;
+            if (brightness < 0.3f) brightness = 0.3f;
+            if (brightness > 1.0f) brightness = 1.0f;
+        }
+
+        public void draw(Graphics2D g2) {
+            Color c = new Color(0, 150, 255, (int)(brightness * 255));
+            g2.setColor(c);
+            g2.fillOval((int) x, (int) y, (int) size, (int) size);
+        }
+    }
+
+    class NeonLine {
+        float x, y;
+        int width;
+        float speed;
+
+        public NeonLine(float startX, float startY, int width) {
+            this.x = startX;
+            this.y = startY;
+            this.width = width;
+            this.speed = 0.3f + rand.nextFloat() * 0.4f;
+        }
+
+        public void update() {
+            x -= speed;
+            if (x + width < 0) {
+                x = getWidth();
+                y = rand.nextInt(getHeight());
+            }
+        }
+
+        public void draw(Graphics2D g2) {
+            GradientPaint gp = new GradientPaint(x, y, new Color(0, 180, 255, 120),
+                    x + width, y, new Color(0, 180, 255, 10));
+            g2.setPaint(gp);
+            g2.fillRect((int) x, (int) y, width, 2);
+        }
+    }
 }

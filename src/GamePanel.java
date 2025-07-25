@@ -64,8 +64,8 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         int currentX = 400;
         this.nextIsTop = true;
 
-        for(int i = 0; i < 60; ++i) {
-            int height = 275 + this.rand.nextInt(80);
+        for(int i = 0; i < 1000; ++i) {
+            int height = 200 + this.rand.nextInt(150);
             this.obstacles.add(new Obstacle(currentX, height, this.nextIsTop));
             currentX += this.obstacleSpacing;
             this.nextIsTop = !this.nextIsTop;
@@ -157,7 +157,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
             }
 
             this.player.update();
-            this.playerX += 6;
+            this.playerX += 8;
             if (this.player.getY() <= 0 || this.player.getY() + this.player.getSize() >= this.getHeight()) {
                 this.isDead = true;
                 this.createDeathExplosion();

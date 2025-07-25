@@ -18,12 +18,17 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     Random rand = new Random();
 
-    int zigzagSegmentLength = 50;
-    int zigzagNumSegments = 60;
-    int zigzagStartX;
+    private static final int SCREEN_HEIGHT = 600;
+    private static final int OBSTACLE_HEIGHT = 40;
+    private static final int Y_TOP_MARGIN = 30;
+    private static final int Y_BOTTOM_MARGIN = 30;
 
-    int zigzagLowY = 200;
-    int zigzagHighY = 350;
+    private static final int MIN_OBSTACLE_Y_FOR_TOP_BAR = Y_TOP_MARGIN; // La Y más baja para el obstáculo superior
+    private static final int MAX_OBSTACLE_Y_FOR_TOP_BAR = SCREEN_HEIGHT - OBSTACLE_HEIGHT - Y_BOTTOM_MARGIN - (OBSTACLE_HEIGHT + 120); // 120 es el pathGap
+
+
+    int segmentLength = 200;
+    int currentObstacleSpawnX;
 
     int obstacleSize = 40;
     int pathGap = 120;
@@ -42,7 +47,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         trail = new ArrayList<>();
         deathParticles = new ArrayList<>();
 
-        zigzagStartX = player.getX() + 800;
+        currentObstacleSpawnX = player.getX() + 800;
 
         bgParticles = new ArrayList<>();
         for (int i = 0; i < 150; i++) {
@@ -85,25 +90,17 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         }
         player.update();
 
-        if (player.getX() + 800 > zigzagStartX) {
-            int xPos = zigzagStartX;
 
-            for (int i = 0; i < zigzagNumSegments; i++) {
-                // Alterna entre altura baja y alta
-                int centerY = (i % 2 == 0) ? zigzagLowY : zigzagHighY;
+        if (player.getX() + 800 > currentObstacleSpawnX) {
+            int topObstacleY = rand.nextInt(MAX_OBSTACLE_Y_FOR_TOP_BAR - MIN_OBSTACLE_Y_FOR_TOP_BAR + 1) + MIN_OBSTACLE_Y_FOR_TOP_BAR;
 
-                // Triángulo fila superior
-                int topY = centerY - pathGap / 2 - obstacleSize;
-                obstacles.add(new Obstacle(xPos, topY, obstacleSize));
+            int bottomObstacleY = topObstacleY + OBSTACLE_HEIGHT + pathGap;
 
-                // Triángulo fila inferior
-                int bottomY = centerY + pathGap / 2;
-                obstacles.add(new Obstacle(xPos, bottomY, obstacleSize));
+            obstacles.add(new Obstacle(currentObstacleSpawnX, topObstacleY, obstacleSize));
 
-                xPos += zigzagSegmentLength;
-            }
+            obstacles.add(new Obstacle(currentObstacleSpawnX, bottomObstacleY, obstacleSize));
 
-            zigzagStartX += zigzagSegmentLength * zigzagNumSegments + 400;
+            currentObstacleSpawnX += segmentLength;
         }
 
         obstacles.removeIf(obs -> obs.x < player.getX() - 100);

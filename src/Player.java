@@ -26,12 +26,12 @@ public class Player {
         x += 4;
         if (y < 0) y = 0;
         if (y > 580) y = 580;
-        tiltAngle *= 0.9;
+        tiltAngle *= 1;
     }
 
     public void draw(Graphics g) {
         Graphics2D g2d = (Graphics2D) g;
-        g2d.setColor(Color.CYAN);
+        g2d.setColor(Color.RED);
 
         AffineTransform old = g2d.getTransform();
 
@@ -60,4 +60,3 @@ public class Player {
         return y;
     }
 }
-

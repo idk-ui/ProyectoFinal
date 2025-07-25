@@ -1,51 +1,49 @@
 import java.awt.*;
 
 public class Obstacle {
-    int x, y, base;
-
-    public Obstacle(int x, int y, int base) {
+    int x, height;
+    boolean isTop;
+    int width = 500;
+    private Color colorSpike = new Color(0x0D0630);
+    public Obstacle(int x, int height, boolean isTop) {
         this.x = x;
-        this.y = y;
-        this.base = base;
+        this.height = height;
+        this.isTop = isTop;
     }
 
-    public void drawNeon(Graphics2D g2, int playerX) {
-        int offsetX = x - playerX + 100;
+    public void draw(Graphics g, int playerX) {
+        int drawX = x - playerX;
+        int[] xPoints = {drawX, drawX + width / 2, drawX + width};
+        int[] yPoints;
 
-        Polygon tri = new Polygon(
-                new int[]{offsetX, offsetX + base / 2, offsetX + base},
-                new int[]{y + base, y, y + base},
-                3
-        );
-
-        for (int i = 8; i > 0; i--) {
-            float alpha = 0.03f * i;
-            g2.setColor(new Color(0, 180, 255, (int)(alpha * 255)));
-            g2.setStroke(new BasicStroke(i * 2));
-            g2.drawPolygon(tri);
+        if (isTop) {
+            yPoints = new int[]{0, height, 0};
+        } else {
+            int bottom = 600; // altura del panel
+            yPoints = new int[]{bottom, bottom - height, bottom};
         }
 
-        GradientPaint gp = new GradientPaint(offsetX, y, new Color(0, 255, 255),
-                offsetX + base, y + base, new Color(0, 100, 255));
-        g2.setPaint(gp);
-        g2.fillPolygon(tri);
+        g.setColor(colorSpike);
+        g.fillPolygon(xPoints, yPoints, 3);
 
-        g2.setColor(new Color(0, 255, 255));
-        g2.setStroke(new BasicStroke(2));
-        g2.drawPolygon(tri);
     }
 
     public boolean collidesWith(Rectangle playerBounds, int playerX) {
-        int offsetX = x - playerX + 100;
+        return getPolygon(playerX).intersects(playerBounds);
+    }
 
-        Polygon tri = new Polygon(
-                new int[]{offsetX, offsetX + base / 2, offsetX + base},
-                new int[]{y + base, y, y + base},
-                3
-        );
+    public Polygon getPolygon(int playerX) {
+        int drawX = x - playerX;
+        int[] xPoints = {drawX, drawX + width / 2, drawX + width};
+        int[] yPoints;
 
-        return tri.intersects(playerBounds);
+        if (isTop) {
+            yPoints = new int[]{0, height, 0};
+        } else {
+            int yBase = 600;
+            yPoints = new int[]{yBase, yBase - height, yBase};
+        }
+
+        return new Polygon(xPoints, yPoints, 3);
     }
 }
-
-

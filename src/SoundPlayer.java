@@ -31,7 +31,7 @@ public class SoundPlayer {
             clip.open(audioIn);
             if (clip.isControlSupported(Type.MASTER_GAIN)) {
                 FloatControl gainControl = (FloatControl)clip.getControl(Type.MASTER_GAIN);
-                gainControl.setValue(6.0F);
+                gainControl.setValue(-10.0F);
             }
 
             clip.start();
